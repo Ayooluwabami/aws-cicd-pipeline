@@ -7,7 +7,7 @@ by **CodeBuild**, and rolled out to hardened **EC2** instances by
 **CodeDeploy**, with a health check gating the deployment and SNS alerts on
 failure.
 
-![Architecture diagram](docs/architecture.svg)
+![Architecture diagram](docs/architecture.png)
 
 ## Repository layout
 
