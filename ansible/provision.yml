@@ -1,0 +1,85 @@
+---
+# Provision Amazon Linux 2023 instances as CI/CD deployment targets.
+# Idempotent alternative to setup/ec2-user-data.sh for existing instances
+# or fleets: baseline packages, CodeDeploy agent, CloudWatch agent,
+# X-Ray daemon, Node.js 20, and pm2.
+#
+#   cp ansible/inventory.ini.example ansible/inventory.ini   # edit hosts
+#   ansible-playbook -i ansible/inventory.ini ansible/provision.yml
+#
+# Per-deploy steps (app install, pm2 start, health gate) stay in the
+# CodeDeploy hooks under scripts/; this playbook only prepares the host.
+
+- name: Provision CI/CD deployment targets
+  hosts: cicd_targets
+  become: true
+  vars:
+    aws_region: us-east-1
+    xray_arch_rpm: "{{ 'aws-xray-daemon-3.x.arm64.rpm' if ansible_architecture == 'aarch64' else 'aws-xray-daemon-3.x.rpm' }}"
+
+  tasks:
+    - name: Update all packages
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+
+    - name: Install base packages
+      ansible.builtin.dnf:
+        name:
+          - ruby
+          - wget
+          - amazon-cloudwatch-agent
+        state: present
+
+    - name: Add NodeSource repository for Node.js 20
+      ansible.builtin.shell: curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+      args:
+        creates: /etc/yum.repos.d/nodesource-nodistro.repo
+
+    - name: Install Node.js
+      ansible.builtin.dnf:
+        name: nodejs
+        state: present
+
+    - name: Install pm2 process manager
+      ansible.builtin.command: npm install -g pm2
+      args:
+        creates: /usr/bin/pm2
+
+    - name: Download the CodeDeploy agent installer
+      ansible.builtin.get_url:
+        url: "https://aws-codedeploy-{{ aws_region }}.s3.{{ aws_region }}.amazonaws.com/latest/install"
+        dest: /tmp/codedeploy-install
+        mode: "0755"
+
+    - name: Install the CodeDeploy agent
+      ansible.builtin.command: /tmp/codedeploy-install auto
+      args:
+        creates: /opt/codedeploy-agent
+
+    - name: Enable and start the CodeDeploy agent
+      ansible.builtin.systemd:
+        name: codedeploy-agent
+        state: started
+        enabled: true
+
+    - name: Install the X-Ray daemon
+      ansible.builtin.dnf:
+        name: "https://s3.us-east-2.amazonaws.com/aws-xray-assets.us-east-2/xray-daemon/{{ xray_arch_rpm }}"
+        state: present
+        disable_gpg_check: true
+
+    - name: Enable and start the X-Ray daemon
+      ansible.builtin.systemd:
+        name: xray
+        state: started
+        enabled: true
+
+    - name: Verify the CodeDeploy agent responds
+      ansible.builtin.command: systemctl is-active codedeploy-agent
+      register: agent_status
+      changed_when: false
+
+    - name: Report agent status
+      ansible.builtin.debug:
+        msg: "CodeDeploy agent: {{ agent_status.stdout }}"

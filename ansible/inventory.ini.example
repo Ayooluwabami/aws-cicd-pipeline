@@ -1,0 +1,9 @@
+# Copy to ansible/inventory.ini and fill in your instance addresses.
+# ansible/inventory.ini is gitignored: host addresses do not belong in git.
+
+[cicd_targets]
+ec2-3-XX-XX-XX.compute-1.amazonaws.com
+
+[cicd_targets:vars]
+ansible_user=ec2-user
+ansible_ssh_private_key_file=~/.ssh/your-key.pem

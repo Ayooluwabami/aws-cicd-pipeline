@@ -1,0 +1,25 @@
+{
+  "agent": {
+    "run_as_user": "root"
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/home/ec2-user/.pm2/logs/aws-cicd-app-out.log",
+            "log_group_name": "/aws-cicd/app",
+            "log_stream_name": "{instance_id}/out",
+            "timezone": "UTC"
+          },
+          {
+            "file_path": "/home/ec2-user/.pm2/logs/aws-cicd-app-error.log",
+            "log_group_name": "/aws-cicd/app",
+            "log_stream_name": "{instance_id}/error",
+            "timezone": "UTC"
+          }
+        ]
+      }
+    }
+  }
+}

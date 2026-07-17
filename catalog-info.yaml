@@ -1,0 +1,28 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: aws-cicd-sample-app
+  title: Deploy record service
+  description: >
+    Node.js status service deployed to EC2 through a gated AWS CodePipeline
+    (secrets, SCA, SAST, IaC scans before build; health-gated deploy with
+    auto-rollback).
+  annotations:
+    github.com/project-slug: OWNER/aws-cicd-pipeline
+  tags:
+    - nodejs
+    - aws
+    - codepipeline
+    - devsecops
+  links:
+    - url: https://console.aws.amazon.com/codesuite/codepipeline/pipelines
+      title: Pipeline
+    - url: docs/slo.md
+      title: SLOs and error budget
+    - url: docs/runbooks/pipeline-failure.md
+      title: Runbooks
+spec:
+  type: service
+  lifecycle: experimental
+  owner: user:ayobami
+  system: cicd-demo

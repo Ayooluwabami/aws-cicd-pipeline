@@ -1,0 +1,48 @@
+version: 0.2
+
+# Security stage buildspec — runs before Build. All four scans are blocking:
+# a finding fails the stage and stops the pipeline before anything is
+# built or deployed (shift-left).
+#
+#   1. gitleaks  — secret detection across the whole repository
+#   2. npm audit — software composition analysis of production dependencies
+#   3. semgrep   — SAST over the application source
+#   4. checkov   — static analysis of the CloudFormation templates
+#
+# Checkov skips are documented accepted risks for this demo workload:
+#   CKV_AWS_18/21/144/145  S3 access logging, versioning, replication, KMS
+#                          (artifact bucket is short-lived, SSE-S3 encrypted)
+#   CKV_AWS_126/135        EC2 detailed monitoring / EBS-optimized (t3.micro demo)
+
+env:
+  variables:
+    GITLEAKS_VERSION: "8.18.4"
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+      python: 3.12
+    commands:
+      - curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
+      - tar -xzf /tmp/gitleaks.tar.gz -C /usr/local/bin gitleaks
+      - pip3 install --quiet checkov semgrep
+
+  build:
+    commands:
+      - echo "[1/4] Secret scan (gitleaks)..."
+      - gitleaks detect --source . --no-git --redact --report-format json --report-path gitleaks-report.json
+      - echo "[2/4] Dependency audit (npm audit, production deps, high severity gate)..."
+      - cd app && npm ci && npm audit --omit=dev --audit-level=high
+      - cd "$CODEBUILD_SRC_DIR"
+      - echo "[3/4] SAST (semgrep on app/)..."
+      - semgrep scan --config auto --error --sarif --sarif-output=semgrep-results.sarif app/
+      - echo "[4/4] IaC scan (checkov on infra/)..."
+      - checkov --directory infra --framework cloudformation --compact --output cli --output sarif --output-file-path console,checkov-results.sarif --skip-check CKV_AWS_18,CKV_AWS_21,CKV_AWS_144,CKV_AWS_145,CKV_AWS_126,CKV_AWS_135
+      - echo "All security gates passed."
+
+artifacts:
+  files:
+    - gitleaks-report.json
+    - semgrep-results.sarif
+    - checkov-results.sarif

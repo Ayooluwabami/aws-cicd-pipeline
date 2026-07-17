@@ -1,0 +1,45 @@
+version: 0.2
+
+# AWS CodeBuild build specification
+# Runs in the Build stage of CodePipeline: installs dependencies, gates on
+# a production dependency audit, runs tests, stamps build metadata, and
+# packages the deployment artifact.
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - echo "Installing dependencies..."
+      - cd app && npm ci
+
+  pre_build:
+    commands:
+      - echo "Auditing production dependencies (gate: high severity)..."
+      - cd app && npm audit --omit=dev --audit-level=high
+      - echo "Running unit tests..."
+      - cd app && npm test
+
+  build:
+    commands:
+      - echo "Compiling TypeScript..."
+      - cd app && npm run build
+      - echo "Stamping build metadata..."
+      - |
+        cat > app/public/build-info.json <<EOF
+        {
+          "commit": "${CODEBUILD_RESOLVED_SOURCE_VERSION}",
+          "buildId": "${CODEBUILD_BUILD_ID}",
+          "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        }
+        EOF
+      - echo "Build completed on $(date)"
+
+artifacts:
+  files:
+    - appspec.yml
+    - scripts/**/*
+    - monitoring/**/*
+    - app/**/*
+  exclude-paths:
+    - app/node_modules/**/*

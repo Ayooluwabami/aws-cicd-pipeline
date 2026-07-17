@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Deploy record</title>
+<meta name="description" content="Live deployment status for the AWS CodePipeline demo service." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600&family=Fragment+Mono&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --bg: #FAFAF9;
+  --text: #1B1B1F;
+  --muted: #6E7076;
+  --faint: #A3A5AB;
+  --hairline: rgba(27, 27, 31, 0.12);
+  --ok: #087F5B;
+  --bad: #C92A2A;
+  --tick-empty: rgba(27, 27, 31, 0.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131316;
+    --text: #E8E8EA;
+    --muted: #9EA0A8;
+    --faint: #5D5F66;
+    --hairline: rgba(232, 232, 234, 0.14);
+    --ok: #38B285;
+    --bad: #E5645F;
+    --tick-empty: rgba(232, 232, 234, 0.09);
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { background: var(--bg); }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Schibsted Grotesk', system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+samp, output, .mono {
+  font-family: 'Fragment Mono', ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+}
+.page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 40px 24px 56px;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding-bottom: 40px;
+}
+header .name { font-weight: 500; }
+header samp { font-size: 13px; color: var(--muted); }
+
+.status { padding: 8px 0 40px; }
+.dot {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--ok);
+  margin-right: 14px;
+  vertical-align: 6px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dot.live { animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.45; } }
+}
+.dot.bad { background: var(--bad); animation: none; }
+h1 {
+  display: inline;
+  font-size: clamp(2rem, 5vw, 2.9rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+h1.bad { color: var(--bad); }
+.status p {
+  margin-top: 14px;
+  color: var(--muted);
+  max-width: 58ch;
+  text-wrap: pretty;
+}
+.status p samp { font-size: 13.5px; color: var(--text); }
+
+.figures {
+  border-top: 1px solid var(--hairline);
+  padding: 28px 0 12px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 28px 24px;
+}
+.figures h2 {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.fig .k { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+.fig output { display: block; font-size: 15.5px; word-break: break-all; }
+
+.checks { border-top: 1px solid var(--hairline); margin-top: 28px; padding: 28px 0 0; }
+.checks h2 { font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 14px; }
+.tickstrip { display: flex; gap: 3px; align-items: flex-end; height: 26px; }
+.tickstrip i {
+  flex: 1;
+  max-width: 14px;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--tick-empty);
+  transition: transform 150ms ease;
+}
+.tickstrip i.ok { background: var(--ok); }
+.tickstrip i.bad { background: var(--bad); }
+.tickstrip i:hover { transform: scaleY(0.82); }
+.lastcheck { margin-top: 12px; font-size: 13px; color: var(--muted); }
+.lastcheck samp { color: var(--text); }
+output.bad, .fig output.bad { color: var(--bad); }
+a.plain { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--hairline); }
+a.plain:hover { border-bottom-color: var(--muted); }
+.reqlog { list-style: none; font-size: 12.5px; }
+.reqlog li {
+  display: grid;
+  grid-template-columns: 82px 1fr 52px 70px;
+  gap: 14px;
+  padding: 6px 0;
+  color: var(--muted);
+  font-family: 'Fragment Mono', ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.reqlog li .p { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reqlog li .s.bad { color: var(--bad); }
+.reqlog li .ms { text-align: right; }
+
+footer {
+  margin-top: auto;
+  padding-top: 48px;
+  font-size: 13px;
+  color: var(--faint);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--hairline); }
+footer a:hover { color: var(--text); border-bottom-color: var(--muted); }
+
+@media (max-width: 720px) {
+  .figures { grid-template-columns: repeat(2, 1fr); }
+  .page { padding: 28px 18px 40px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <span class="name">Deploy record</span>
+    <samp><span id="t-host">…</span> / <span id="t-rev">…</span></samp>
+  </header>
+
+  <section class="status">
+    <span class="dot live" id="dot" aria-hidden="true"></span><h1 id="status-word">Checking</h1>
+    <p id="status-line">Waiting for the first response from the process.</p>
+  </section>
+
+  <section class="figures" aria-label="Runtime figures">
+    <h2>Process</h2>
+    <div class="fig"><span class="k">Uptime</span><output id="m-uptime">0s</output></div>
+    <div class="fig"><span class="k">Memory</span><output id="m-rss">…</output></div>
+    <div class="fig"><span class="k">Heap</span><output id="m-heap">…</output></div>
+    <div class="fig"><span class="k">Load, 1 min</span><output id="m-load">…</output></div>
+    <div class="fig"><span class="k">Node</span><output id="m-node">…</output></div>
+    <div class="fig"><span class="k">Process id</span><output id="m-pid">…</output></div>
+    <div class="fig"><span class="k">CPU cores</span><output id="m-cpu">…</output></div>
+    <div class="fig"><span class="k">Requests served</span><output id="m-req">…</output></div>
+  </section>
+
+  <section class="figures" aria-label="Revision">
+    <h2>Revision</h2>
+    <div class="fig"><span class="k">Commit</span><output id="t-commit">…</output></div>
+    <div class="fig"><span class="k">Build</span><output id="t-build">…</output></div>
+    <div class="fig"><span class="k">Built</span><output id="t-built">…</output></div>
+    <div class="fig"><span class="k">Delivered by</span><output>CodeDeploy</output></div>
+  </section>
+
+  <section class="figures" aria-label="Service objectives">
+    <h2>Objectives, measured over the last <samp id="sli-window">0</samp> requests</h2>
+    <div class="fig"><span class="k">Availability, target 99.5%</span><output id="slo-avail">…</output></div>
+    <div class="fig"><span class="k">Latency p99, target 300 ms</span><output id="slo-p99">…</output></div>
+    <div class="fig"><span class="k">Error rate, target under 1%</span><output id="slo-err">…</output></div>
+    <div class="fig"><span class="k">Error budget used</span><output id="slo-budget">…</output></div>
+  </section>
+
+  <section class="figures" aria-label="Golden signals">
+    <h2>Golden signals</h2>
+    <div class="fig"><span class="k">Traffic, req/min</span><output id="g-traffic">…</output></div>
+    <div class="fig"><span class="k">Latency p95</span><output id="g-p95">…</output></div>
+    <div class="fig"><span class="k">Errors, last 5 min</span><output id="g-errors">…</output></div>
+    <div class="fig"><span class="k">Saturation, loop lag p99</span><output id="g-sat">…</output></div>
+  </section>
+
+  <section class="figures" aria-label="Telemetry pipeline">
+    <h2>Telemetry</h2>
+    <div class="fig"><span class="k">Metrics</span><output><a href="/metrics" class="mono plain">/metrics</a> Prometheus</output></div>
+    <div class="fig"><span class="k">Logs</span><output>CloudWatch /aws-cicd/app</output></div>
+    <div class="fig"><span class="k">Traces</span><output id="t-traces">…</output></div>
+  </section>
+
+  <section class="checks">
+    <h2>Health checks, every 5 seconds</h2>
+    <div class="tickstrip" id="strip" role="img" aria-label="Recent health check results"></div>
+    <p class="lastcheck" id="lastcheck">No checks yet.</p>
+  </section>
+
+  <section class="checks">
+    <h2>Access log, most recent requests</h2>
+    <ul id="reqlog" class="reqlog"></ul>
+  </section>
+
+  <footer>
+    <span>GitHub to CodePipeline to CodeBuild to CodeDeploy, no manual steps.</span>
+    <a href="/api/telemetry">Raw telemetry</a>
+  </footer>
+
+</div>
+<script>
+(function () {
+  var startedAt = null;
+  var STRIP_SIZE = 40;
+  var results = [];
+
+  function set(id, text) { document.getElementById(id).textContent = text; }
+  function fmtBytes(b) { return (b / 1048576).toFixed(1) + ' MB'; }
+  function fmtUptime(s) {
+    s = Math.floor(s);
+    var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600),
+        m = Math.floor(s % 3600 / 60), sec = s % 60;
+    if (d > 0) return d + 'd ' + h + 'h ' + m + 'm';
+    if (h > 0) return h + 'h ' + m + 'm ' + sec + 's';
+    if (m > 0) return m + 'm ' + sec + 's';
+    return sec + 's';
+  }
+
+  function setStatus(ok) {
+    var w = document.getElementById('status-word');
+    var dot = document.getElementById('dot');
+    w.textContent = ok ? 'In service' : 'Unreachable';
+    w.className = ok ? '' : 'bad';
+    dot.className = ok ? 'dot live' : 'dot bad';
+  }
+
+  function renderStrip() {
+    var strip = document.getElementById('strip');
+    strip.innerHTML = '';
+    for (var i = 0; i < STRIP_SIZE; i++) {
+      var el = document.createElement('i');
+      var r = results[results.length - STRIP_SIZE + i];
+      if (r) {
+        el.className = r.ok ? 'ok' : 'bad';
+        el.title = r.time + (r.ok ? ' · 200 in ' + r.ms + ' ms' : ' · failed');
+      }
+      strip.appendChild(el);
+    }
+  }
+
+  function recordCheck(ok, ms) {
+    var time = new Date().toTimeString().slice(0, 8);
+    results.push({ ok: ok, ms: ms, time: time });
+    if (results.length > STRIP_SIZE) results.shift();
+    renderStrip();
+    document.getElementById('lastcheck').innerHTML = ok
+      ? 'Last check at <samp>' + time + '</samp> returned <samp>200</samp> in <samp>' + ms + ' ms</samp>.'
+      : 'Last check at <samp>' + time + '</samp> failed.';
+  }
+
+  function pollInfo() {
+    fetch('/api/info').then(function (r) { return r.json(); }).then(function (info) {
+      var commit = info.build.commit || 'local';
+      set('t-host', info.hostname.toLowerCase());
+      set('t-rev', commit.slice(0, 7));
+      set('t-commit', commit.slice(0, 12));
+      set('t-build', (info.build.buildId || 'local').split(':').pop().slice(0, 12));
+      set('t-built', info.build.builtAt ? info.build.builtAt.replace('T', ' ').replace('Z', ' UTC') : 'local dev');
+      document.getElementById('status-line').innerHTML =
+        'Revision <samp>' + commit.slice(0, 7) + '</samp> is serving on <samp>'
+        + info.hostname.toLowerCase() + '</samp>. Every figure below is read live from the running process.';
+    }).catch(function () {});
+  }
+
+  function pollTelemetry() {
+    fetch('/api/telemetry').then(function (r) { return r.json(); }).then(function (t) {
+      startedAt = t.startedAt;
+      set('m-rss', fmtBytes(t.rssBytes));
+      set('m-heap', fmtBytes(t.heapUsedBytes));
+      set('m-load', t.loadAverage[0].toFixed(2));
+      set('m-node', t.nodeVersion);
+      set('m-pid', String(t.pid));
+      set('m-cpu', String(t.cpuCount));
+      set('m-req', String(t.requestsServed));
+      setStatus(true);
+    }).catch(function () { setStatus(false); });
+  }
+
+  function setSlo(id, text, met) {
+    var el = document.getElementById(id);
+    el.textContent = text;
+    el.className = met ? '' : 'bad';
+  }
+
+  function pollSli() {
+    fetch('/api/sli').then(function (r) { return r.json(); }).then(function (s) {
+      set('sli-window', String(s.window.requests));
+      setSlo('slo-avail', s.slo.availability.currentPct.toFixed(2) + '%', s.slo.availability.met);
+      setSlo('slo-p99', s.slo.latencyP99.currentMs + ' ms', s.slo.latencyP99.met);
+      setSlo('slo-err', s.slo.errorRate.currentPct.toFixed(2) + '%', s.slo.errorRate.met);
+      setSlo('slo-budget', s.slo.budgetUsedPct + '%', s.slo.budgetUsedPct < 50);
+      set('g-traffic', String(s.golden.trafficRpm));
+      set('g-p95', s.golden.latencyP95Ms + ' ms');
+      setSlo('g-errors', String(s.golden.errorsLast5m), s.golden.errorsLast5m === 0);
+      set('g-sat', s.golden.saturation.loopLagP99Ms + ' ms');
+      set('t-traces', s.telemetry.traces.enabled
+        ? 'X-Ray on, ' + s.telemetry.traces.service
+        : 'X-Ray off in local dev');
+      var ul = document.getElementById('reqlog');
+      ul.innerHTML = '';
+      s.recent.forEach(function (r) {
+        var li = document.createElement('li');
+        var t = new Date(r.t).toTimeString().slice(0, 8);
+        var bad = r.status >= 500;
+        li.innerHTML = '<span>' + t + '</span><span class="p">' + r.method + ' ' + r.path
+          + '</span><span class="s' + (bad ? ' bad' : '') + '">' + r.status
+          + '</span><span class="ms">' + r.ms + ' ms</span>';
+        ul.appendChild(li);
+      });
+    }).catch(function () {});
+  }
+
+  function pollHealth() {
+    var t0 = performance.now();
+    fetch('/api/health').then(function (r) {
+      recordCheck(r.status === 200, Math.max(1, Math.round(performance.now() - t0)));
+      setStatus(r.status === 200);
+    }).catch(function () {
+      recordCheck(false, 0);
+      setStatus(false);
+    });
+  }
+
+  setInterval(function () {
+    if (startedAt) set('m-uptime', fmtUptime((Date.now() - startedAt) / 1000));
+  }, 1000);
+
+  renderStrip();
+  pollInfo();
+  pollTelemetry();
+  pollHealth();
+  pollSli();
+  setInterval(pollTelemetry, 3000);
+  setInterval(pollHealth, 5000);
+  setInterval(pollSli, 5000);
+})();
+</script>
+</body>
+</html>
