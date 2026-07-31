@@ -18,7 +18,7 @@
     "aws-xray-sdk-core": "^3.10.1",
     "aws-xray-sdk-express": "^3.10.1",
     "express": "^4.19.2",
-    "express-rate-limit": "^7.4.0",
+    "express-rate-limit": "^8.6.1",
     "helmet": "^8.0.0",
     "prom-client": "^15.1.3"
   },
